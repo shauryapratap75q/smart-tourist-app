@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { JSX, useState } from "react";
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   StyleSheet,
   Modal,
   ScrollView,
+  Alert,
 } from "react-native";
+import * as Location from "expo-location";
 
 const theme = {
   colors: {
@@ -22,8 +24,51 @@ const theme = {
   },
 };
 
-export default function HomeScreen() {
-  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
+type ModalContent = {
+  emoji: string;
+  title: string;
+  text: string;
+} | null;
+
+export default function HomeScreen(): JSX.Element {
+  const [modalContent, setModalContent] = useState<ModalContent>(null);
+
+  const handleSOS = () => {
+    setModalContent({
+      emoji: "🚨",
+      title: "Emergency Alert Sent!",
+      text: "Your location has been shared with authorities.",
+    });
+  };
+
+  const handleShareLocation = async () => {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission Denied", "Location permission is required!");
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
+      setModalContent({
+        emoji: "📍",
+        title: "Location Shared!",
+        text: `Your real-time location:\nLat: ${latitude}\nLon: ${longitude}`,
+      });
+    } catch (err) {
+      Alert.alert("Error", "Unable to fetch location.");
+    }
+  };
+
+  const handleCheckIn = () => {
+    setModalContent({
+      emoji: "✅",
+      title: "Checked In!",
+      text: "Your contacts have been notified that you are safe.",
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -40,30 +85,28 @@ export default function HomeScreen() {
           <Text style={styles.cardSubtitle}>
             Tap this button to alert emergency services and share your location.
           </Text>
-          <TouchableOpacity
-            style={styles.sosButton}
-            onPress={() => setIsEmergencyModalOpen(true)}
-          >
+          <TouchableOpacity style={styles.sosButton} onPress={handleSOS}>
             <Text style={styles.sosText}>🚨 SOS</Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Actions */}
         <View style={styles.row}>
-          <View style={styles.quickCard}>
+          <TouchableOpacity style={styles.quickCard} onPress={handleShareLocation}>
             <Text style={styles.quickIcon}>📍</Text>
             <Text style={styles.quickTitle}>Share My Location</Text>
             <Text style={styles.quickSubtitle}>
               Instantly share your real-time location.
             </Text>
-          </View>
-          <View style={styles.quickCard}>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickCard} onPress={handleCheckIn}>
             <Text style={styles.quickIcon}>✅</Text>
             <Text style={styles.quickTitle}>Check-in</Text>
             <Text style={styles.quickSubtitle}>
               Let contacts know you’re safe.
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* Alerts Section */}
@@ -92,18 +135,20 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
 
-      {/* Emergency Modal */}
-      <Modal visible={isEmergencyModalOpen} transparent animationType="fade">
+      {/* Modal */}
+      <Modal visible={!!modalContent} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalEmoji}>🚨</Text>
-            <Text style={styles.modalTitle}>Emergency Alert Sent!</Text>
-            <Text style={styles.modalText}>
-              Your location has been shared with emergency services.
-            </Text>
+            {modalContent && (
+              <>
+                <Text style={styles.modalEmoji}>{modalContent.emoji}</Text>
+                <Text style={styles.modalTitle}>{modalContent.title}</Text>
+                <Text style={styles.modalText}>{modalContent.text}</Text>
+              </>
+            )}
             <TouchableOpacity
               style={styles.closeBtn}
-              onPress={() => setIsEmergencyModalOpen(false)}
+              onPress={() => setModalContent(null)}
             >
               <Text style={{ fontWeight: "bold" }}>Close</Text>
             </TouchableOpacity>
